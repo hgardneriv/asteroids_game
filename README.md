@@ -15,7 +15,13 @@ Play on-line <a href="https://wheat-short-danthus.glitch.me/" target="_blank" re
 
 - __Glitch__ - Thanks to Glitch for hosting this app on your easy to use platform. I highly recommend [Glitch](https://glitch.com/) to deploy and share node.js prototypes, awesome service!
 
-Running Local:
+- __Express__ - https://expressjs.com/
+
+- __P5__  - https://p5js.org/ __<-- SECRET SAUCE__ that makes the graphics, sound, and game play possible!
+
+- __Pixabay__ - https://pixabay.com/ - Thanks to the creators at this site, your sounds make this game funner!
+
+# Running Local
 
 1. Make sure [Node.js](https://nodejs.org/en/download) is installed locally, ideally using a version management tool like [Node Version Manager](https://github.com/nvm-sh/nvm).
 2. Install dependencies using NVM - from terminal window in project root, run: `nvm install`
