@@ -11,13 +11,21 @@ let explosionParticles = [];
 let explosionSound;
 let shootSound;
 let backgroundMusic;
+let saucerSound;
 let isExploding = false;
 let explosionTimer = 0;
+let saucer = null;
+let saucerBullets = [];
+let saucerShotCounter = 0;
+let saucerSpawned = false;
+let levelCompleted = false;
+let initialAsteroids = 2;
+let saucerShotDirection = 1;
+
 const PAUSE_DURATION = 3000;
 const MUSIC_VOLUME = 0.5;
 const SHOOT_VOLUME = 0.3;
 
-// Key state tracking
 let keys = {
     left: false,
     right: false,
@@ -30,6 +38,7 @@ function preload() {
     explosionSound = loadSound('explosion.mp3');
     shootSound = loadSound('shoot.mp3');
     backgroundMusic = loadSound('background.mp3');
+    saucerSound = loadSound('saucer.mp3');
 }
 
 function setup() {
@@ -55,16 +64,27 @@ function resetGame() {
     explosionParticles = [];
     isExploding = false;
     explosionTimer = 0;
+    saucer = null;
+    saucerBullets = [];
+    saucerShotCounter = 0;
+    saucerSpawned = false;
+    levelCompleted = false;
+    saucerShotDirection = 1;
     
     backgroundMusic.loop();
     backgroundMusic.setVolume(MUSIC_VOLUME);
     shootSound.setVolume(SHOOT_VOLUME);
+    saucerSound.stop();
+    
+    for (let i = 0; i < initialAsteroids; i++) {
+        asteroids.push(createAsteroid('large'));
+    }
 }
 
 function draw() {
     background(0);
     
-    if (!gameOver) {
+    if (!gameOver && !levelCompleted) {
         if (isExploding) {
             updateExplosion();
             drawExplosion();
@@ -74,34 +94,31 @@ function draw() {
                 explosionTimer = 0;
                 explosionParticles = [];
                 ship.speed = 0;
+                checkWinCondition();
             }
         } else {
             updateGame();
             drawGame();
         }
-    } else {
+    } else if (gameOver) {
         drawGameOver();
+        backgroundMusic.stop();
+    } else if (levelCompleted) {
+        drawLevelCompleted();
         backgroundMusic.stop();
     }
 }
 
 function updateGame() {
-    // Handle continuous rotation
-    if (keys.left) {
-        ship.angle -= 0.1;
-    }
-    if (keys.right) {
-        ship.angle += 0.1;
-    }
+    if (keys.left) ship.angle -= 0.1;
+    if (keys.right) ship.angle += 0.1;
     
-    // Handle thrust
     if (keys.up) {
         ship.speed = min(ship.speed + 0.2, ship.maxSpeed);
     } else {
         ship.speed = max(ship.speed - 0.1, 0);
     }
     
-    // Handle firing
     if (keys.space) {
         let firingAngle = ship.angle - PI / 2;
         let noseX = ship.x + cos(firingAngle) * 15;
@@ -118,35 +135,72 @@ function updateGame() {
         keys.space = false;
     }
 
-    // Update ship position
     let thrustAngle = ship.angle - PI / 2;
     ship.x += cos(thrustAngle) * ship.speed;
     ship.y += sin(thrustAngle) * ship.speed;
     
-    // Wrap around edges
     ship.x = (ship.x + width) % width;
     ship.y = (ship.y + height) % height;
     
-    // Spawn asteroids
-    if (random() < 0.02) {
-        asteroids.push(createAsteroid());
+    if (asteroids.length === 2 && !saucerSpawned && saucer === null) {
+        saucer = {
+            x: 0,
+            y: height/8,  // Start at middle of top 1/4
+            dx: 3,
+            dy: 1,        // Vertical speed for zig-zag
+            shootTimer: 0,
+            direction: 1  // 1 for down, -1 for up
+        };
+        saucerShotCounter = 0;
+        saucerSpawned = true;
+        saucerSound.loop();
     }
     
-    // Update asteroids
+    if (saucer) {
+        saucer.x += saucer.dx;
+        saucer.y += saucer.dy * saucer.direction;
+        saucer.shootTimer += deltaTime;
+        saucerShotCounter += deltaTime;
+        
+        // Zig-zag within top 1/4
+        if (saucer.y > height/4) {
+            saucer.y = height/4;
+            saucer.direction = -1;  // Move up
+        } else if (saucer.y < 0) {
+            saucer.y = 0;
+            saucer.direction = 1;   // Move down
+        }
+        
+        if (saucer.x > width) {
+            saucer.x = 0;
+        }
+        
+        let baseInterval = map(saucerShotCounter, 0, 30000, 2000, 500);
+        if (saucer.shootTimer > random(baseInterval, baseInterval + 500)) {
+            let shootAngle = saucerShotDirection > 0 ? PI/4 : 3*PI/4;
+            saucerBullets.push({
+                x: saucer.x,
+                y: saucer.y,
+                dx: cos(shootAngle) * 5,
+                dy: sin(shootAngle) * 5
+            });
+            saucerShotDirection *= -1;
+            saucer.shootTimer = 0;
+        }
+    }
+    
     for (let i = asteroids.length - 1; i >= 0; i--) {
         let a = asteroids[i];
         a.x += a.dx;
         a.y += a.dy;
         
-        // Wrap asteroids
         a.x = (a.x + width) % width;
         a.y = (a.y + height) % height;
         
-        // Check collision with ship
         if (dist(ship.x, ship.y, a.x, a.y) < a.size + 10) {
             lives--;
             asteroids.splice(i, 1);
-            triggerExplosion(ship.x, ship.y);
+            triggerShipExplosion();
             ship.x = width/2;
             ship.y = height/2;
             if (lives <= 0) {
@@ -155,20 +209,43 @@ function updateGame() {
             break;
         }
         
-        // Check collision with bullets
         for (let j = bullets.length - 1; j >= 0; j--) {
             let b = bullets[j];
             if (dist(b.x, b.y, a.x, a.y) < a.size) {
+                let asteroidSize = a.sizeType;
                 asteroids.splice(i, 1);
                 bullets.splice(j, 1);
-                score += 10;
+                score += asteroidSize === 'large' ? 20 : asteroidSize === 'medium' ? 50 : 100;
                 hits++;
+                
+                if (asteroidSize === 'large') {
+                    asteroids.push(createAsteroid('medium', a.x, a.y));
+                    asteroids.push(createAsteroid('small', a.x, a.y));
+                    asteroids.push(createAsteroid('small', a.x, a.y));
+                } else if (asteroidSize === 'medium') {
+                    asteroids.push(createAsteroid('small', a.x, a.y));
+                }
+                checkWinCondition();
                 break;
             }
         }
     }
     
-    // Update bullets
+    if (saucer) {
+        for (let j = bullets.length - 1; j >= 0; j--) {
+            let b = bullets[j];
+            if (dist(b.x, b.y, saucer.x, saucer.y) < 15) {
+                score += 100;
+                triggerSaucerExplosion(saucer.x, saucer.y);
+                saucer = null;
+                saucerSound.stop();
+                bullets.splice(j, 1);
+                checkWinCondition();
+                break;
+            }
+        }
+    }
+    
     for (let i = bullets.length - 1; i >= 0; i--) {
         let b = bullets[i];
         b.x += b.dx;
@@ -178,11 +255,54 @@ function updateGame() {
             bullets.splice(i, 1);
         }
     }
+    
+    for (let i = saucerBullets.length - 1; i >= 0; i--) {
+        let b = saucerBullets[i];
+        b.x += b.dx;
+        b.y += b.dy;
+        
+        if (dist(ship.x, ship.y, b.x, b.y) < 15) {
+            lives--;
+            saucerBullets.splice(i, 1);
+            triggerShipExplosion();
+            ship.x = width/2;
+            ship.y = height/2;
+            if (lives <= 0) {
+                gameOver = true;
+            }
+            break;
+        }
+        
+        if (b.x < 0 || b.x > width || b.y < 0 || b.y > height) {
+            saucerBullets.splice(i, 1);
+            checkWinCondition();
+        }
+    }
 }
 
-function triggerExplosion(x, y) {
+function checkWinCondition() {
+    if (asteroids.length === 0 && saucer === null && saucerBullets.length === 0) {
+        levelCompleted = true;
+    }
+}
+
+function triggerShipExplosion() {
     isExploding = true;
     explosionTimer = 0;
+    explosionSound.play();
+    for (let i = 0; i < 20; i++) {
+        explosionParticles.push({
+            x: ship.x,
+            y: ship.y,
+            vx: random(-2, 2),
+            vy: random(-2, 2),
+            size: random(2, 5),
+            life: 60
+        });
+    }
+}
+
+function triggerSaucerExplosion(x, y) {
     explosionSound.play();
     for (let i = 0; i < 20; i++) {
         explosionParticles.push({
@@ -202,14 +322,11 @@ function updateExplosion() {
         p.x += p.vx;
         p.y += p.vy;
         p.life--;
-        if (p.life <= 0) {
-            explosionParticles.splice(i, 1);
-        }
+        if (p.life <= 0) explosionParticles.splice(i, 1);
     }
 }
 
 function drawGame() {
-    // Draw ship
     push();
     translate(ship.x, ship.y);
     rotate(ship.angle);
@@ -217,19 +334,43 @@ function drawGame() {
     triangle(-10, 10, 0, -15, 10, 10);
     pop();
     
-    // Draw asteroids
-    fill(150);
     asteroids.forEach(a => {
+        fill(150);
         circle(a.x, a.y, a.size * 2);
     });
     
-    // Draw bullets (white)
     fill(255);
-    bullets.forEach(b => {
-        circle(b.x, b.y, 5);
-    });
+    bullets.forEach(b => circle(b.x, b.y, 5));
     
-    // Draw score and lives
+    if (saucer) {
+        push();
+        translate(saucer.x, saucer.y);
+        // Lower disc with black and white outline
+        fill(0);  // Black outline
+        beginShape();
+        vertex(-22, 2);      // Left edge slightly wider for outline
+        bezierVertex(-17, 7, -7, 7, 0, 2);
+        bezierVertex(7, 7, 17, 7, 22, 2);
+        bezierVertex(17, -3, 7, -3, 0, 2);
+        bezierVertex(-7, -3, -17, -3, -22, 2);
+        endShape(CLOSE);
+        fill(255);  // White inner fill
+        beginShape();
+        vertex(-20, 0);
+        bezierVertex(-15, 5, -5, 5, 0, 0);
+        bezierVertex(5, 5, 15, 5, 20, 0);
+        bezierVertex(15, -5, 5, -5, 0, 0);
+        bezierVertex(-5, -5, -15, -5, -20, 0);
+        endShape(CLOSE);
+        // Solid grey dome
+        fill(150, 150, 150);
+        ellipse(0, -5, 10, 10);
+        pop();
+    }
+    
+    fill(255, 0, 0);
+    saucerBullets.forEach(b => circle(b.x, b.y, 5));
+    
     textSize(20);
     fill(255);
     text(`Score: ${score}`, 10, 30);
@@ -238,9 +379,7 @@ function drawGame() {
 
 function drawExplosion() {
     fill(255, 150, 0);
-    explosionParticles.forEach(p => {
-        circle(p.x, p.y, p.size);
-    });
+    explosionParticles.forEach(p => circle(p.x, p.y, p.size));
 }
 
 function drawGameOver() {
@@ -260,18 +399,43 @@ function drawGameOver() {
     text("Restart", width/2, height/2 + 105);
 }
 
-function createAsteroid() {
-    let edge = floor(random(4));
-    let x, y, dx, dy;
+function drawLevelCompleted() {
+    textSize(60);
+    textAlign(CENTER, CENTER);
+    fill(255, 0, 0);
+    text("Level Completed!", width/2 + 2, height/2 - 32);
+    fill(0, 255, 0);
+    text("Level Completed!", width/2 - 2, height/2 - 32);
+    fill(0, 0, 255);
+    text("Level Completed!", width/2, height/2 - 30 + 2);
+    fill(255, 255, 0);
+    text("Level Completed!", width/2, height/2 - 30);
     
-    switch(edge) {
-        case 0: x = 0; y = random(height); dx = random(1, 3); dy = random(-1, 1); break;
-        case 1: x = width; y = random(height); dx = random(-3, -1); dy = random(-1, 1); break;
-        case 2: x = random(width); y = 0; dx = random(-1, 1); dy = random(1, 3); break;
-        case 3: x = random(width); y = height; dx = random(-1, 1); dy = random(-3, -1);
+    textSize(20);
+    fill(255);
+    text("Press the Enter Key to Continue", width/2, height/2 + 20);
+}
+
+function createAsteroid(sizeType, x, y) {
+    if (x === undefined || y === undefined) {
+        let edge = floor(random(4));
+        switch(edge) {
+            case 0: x = 0; y = random(height); break;
+            case 1: x = width; y = random(height); break;
+            case 2: x = random(width); y = 0; break;
+            case 3: x = random(width); y = height; break;
+        }
     }
     
-    return { x, y, dx, dy, size: random(10, 30) };
+    let dx = random(-3, 3);
+    let dy = random(-3, 3);
+    
+    let size;
+    if (sizeType === 'large') size = 30;
+    else if (sizeType === 'medium') size = 20;
+    else if (sizeType === 'small') size = 10;
+    
+    return { x, y, dx, dy, size, sizeType };
 }
 
 function keyPressed() {
@@ -279,6 +443,10 @@ function keyPressed() {
     else if (keyCode === RIGHT_ARROW) keys.right = true;
     else if (keyCode === UP_ARROW) keys.up = true;
     else if (keyCode === 32) keys.space = true;
+    else if (keyCode === 13 && levelCompleted) {
+        initialAsteroids++;
+        resetGame();
+    }
 }
 
 function keyReleased() {
