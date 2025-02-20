@@ -1,5 +1,5 @@
 # asteroids_game
-Version of asteroids created using Grok3 Beta, just for fun!
+Version of asteroids created using __Grok3 Beta__, just for fun!
 
 <!-- Play on-line [HERE](https://wheat-short-danthus.glitch.me/)  -->
 Play on-line <a href="https://wheat-short-danthus.glitch.me/" target="_blank" rel="noopener noreferrer">HERE</a>
