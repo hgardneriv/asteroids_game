@@ -26,6 +26,7 @@ let keys = {
 };
 
 function preload() {
+    // TODO: When deploying on-line update the location of the sound file, typically with URL of hosted sound file or asset
     explosionSound = loadSound('explosion.mp3');
     shootSound = loadSound('shoot.mp3');
     backgroundMusic = loadSound('background.mp3');
