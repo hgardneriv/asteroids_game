@@ -21,6 +21,7 @@ let saucerSpawned = false;
 let levelCompleted = false;
 let initialAsteroids = 2;
 let saucerShotDirection = 1;
+let stars = [];  // Array for star positions
 
 const PAUSE_DURATION = 3000;
 const MUSIC_VOLUME = 0.5;
@@ -43,6 +44,14 @@ function preload() {
 
 function setup() {
     createCanvas(800, 600);
+    // Generate stars once at setup
+    for (let i = 0; i < 50; i++) {  // 50 stars for a sparse, starry look
+        stars.push({
+            x: random(width),
+            y: random(height),
+            size: random(1, 3)  // Vary size between 1-3 pixels
+        });
+    }
     resetGame();
 }
 
@@ -83,6 +92,13 @@ function resetGame() {
 
 function draw() {
     background(0);
+    
+    // Draw stars in the background
+    fill(255);
+    noStroke();
+    stars.forEach(star => {
+        circle(star.x, star.y, star.size);
+    });
     
     if (!gameOver && !levelCompleted) {
         if (isExploding) {
@@ -145,11 +161,11 @@ function updateGame() {
     if (asteroids.length === 2 && !saucerSpawned && saucer === null) {
         saucer = {
             x: 0,
-            y: height/8,  // Start at middle of top 1/4
+            y: height/8,
             dx: 3,
-            dy: 1,        // Vertical speed for zig-zag
+            dy: 1,
             shootTimer: 0,
-            direction: 1  // 1 for down, -1 for up
+            direction: 1
         };
         saucerShotCounter = 0;
         saucerSpawned = true;
@@ -162,13 +178,12 @@ function updateGame() {
         saucer.shootTimer += deltaTime;
         saucerShotCounter += deltaTime;
         
-        // Zig-zag within top 1/4
         if (saucer.y > height/4) {
             saucer.y = height/4;
-            saucer.direction = -1;  // Move up
+            saucer.direction = -1;
         } else if (saucer.y < 0) {
             saucer.y = 0;
-            saucer.direction = 1;   // Move down
+            saucer.direction = 1;
         }
         
         if (saucer.x > width) {
@@ -345,16 +360,15 @@ function drawGame() {
     if (saucer) {
         push();
         translate(saucer.x, saucer.y);
-        // Lower disc with black and white outline
-        fill(0);  // Black outline
+        fill(0);
         beginShape();
-        vertex(-22, 2);      // Left edge slightly wider for outline
+        vertex(-22, 2);
         bezierVertex(-17, 7, -7, 7, 0, 2);
         bezierVertex(7, 7, 17, 7, 22, 2);
         bezierVertex(17, -3, 7, -3, 0, 2);
         bezierVertex(-7, -3, -17, -3, -22, 2);
         endShape(CLOSE);
-        fill(255);  // White inner fill
+        fill(255);
         beginShape();
         vertex(-20, 0);
         bezierVertex(-15, 5, -5, 5, 0, 0);
@@ -362,7 +376,6 @@ function drawGame() {
         bezierVertex(15, -5, 5, -5, 0, 0);
         bezierVertex(-5, -5, -15, -5, -20, 0);
         endShape(CLOSE);
-        // Solid grey dome
         fill(150, 150, 150);
         ellipse(0, -5, 10, 10);
         pop();
