@@ -2,10 +2,10 @@
 let ship;
 let asteroids = [];
 let bullets = [];
-let score = 0;
+let score = 0;        // Moved to global scope
 let gameOver = false;
-let shotsFired = 0;
-let hits = 0;
+let shotsFired = 0;   // Moved to global scope
+let hits = 0;         // Moved to global scope
 let lives = 3;
 let explosionParticles = [];
 let explosionSound;
@@ -21,7 +21,7 @@ let saucerSpawned = false;
 let levelCompleted = false;
 let initialAsteroids = 2;
 let saucerShotDirection = 1;
-let stars = [];  // Array for star positions
+let stars = [];
 
 const PAUSE_DURATION = 3000;
 const MUSIC_VOLUME = 0.5;
@@ -44,14 +44,17 @@ function preload() {
 
 function setup() {
     createCanvas(800, 600);
-    // Generate stars once at setup
-    for (let i = 0; i < 50; i++) {  // 50 stars for a sparse, starry look
+    for (let i = 0; i < 50; i++) {
         stars.push({
             x: random(width),
             y: random(height),
-            size: random(1, 3)  // Vary size between 1-3 pixels
+            size: random(1, 3)
         });
     }
+    lives = 3;
+    score = 0;      // Initialize at game start
+    shotsFired = 0; // Initialize at game start
+    hits = 0;       // Initialize at game start
     resetGame();
 }
 
@@ -65,11 +68,8 @@ function resetGame() {
     };
     asteroids = [];
     bullets = [];
-    score = 0;
+    // score, shotsFired, hits persist, not reset here
     gameOver = false;
-    shotsFired = 0;
-    hits = 0;
-    lives = 3;
     explosionParticles = [];
     isExploding = false;
     explosionTimer = 0;
@@ -93,7 +93,6 @@ function resetGame() {
 function draw() {
     background(0);
     
-    // Draw stars in the background
     fill(255);
     noStroke();
     stars.forEach(star => {
@@ -477,6 +476,11 @@ function mousePressed() {
         
         if (mouseX > buttonX && mouseX < buttonX + buttonWidth &&
             mouseY > buttonY && mouseY < buttonY + buttonHeight) {
+            lives = 3;          // Reset lives
+            score = 0;          // Reset score
+            shotsFired = 0;     // Reset shots fired
+            hits = 0;           // Reset hits
+            initialAsteroids = 2;
             resetGame();
         }
     }
