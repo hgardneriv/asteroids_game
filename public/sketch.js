@@ -2,10 +2,10 @@
 let ship;
 let asteroids = [];
 let bullets = [];
-let score = 0;        // Moved to global scope
+let score = 0;
 let gameOver = false;
-let shotsFired = 0;   // Moved to global scope
-let hits = 0;         // Moved to global scope
+let shotsFired = 0;
+let hits = 0;
 let lives = 3;
 let explosionParticles = [];
 let explosionSound;
@@ -52,9 +52,9 @@ function setup() {
         });
     }
     lives = 3;
-    score = 0;      // Initialize at game start
-    shotsFired = 0; // Initialize at game start
-    hits = 0;       // Initialize at game start
+    score = 0;
+    shotsFired = 0;
+    hits = 0;
     resetGame();
 }
 
@@ -68,7 +68,6 @@ function resetGame() {
     };
     asteroids = [];
     bullets = [];
-    // score, shotsFired, hits persist, not reset here
     gameOver = false;
     explosionParticles = [];
     isExploding = false;
@@ -349,11 +348,31 @@ function drawGame() {
     pop();
     
     asteroids.forEach(a => {
-        fill(150);
-        circle(a.x, a.y, a.size * 2);
+        push();
+        translate(a.x, a.y);
+        let scaleFactor = a.sizeType === 'large' ? 1.5 : a.sizeType === 'medium' ? 1.0 : 0.5;
+        scale(scaleFactor);
+        
+        // Draw highly irregular, jagged asteroid like original
+        stroke(255);  // White outline
+        strokeWeight(1);  // Thinner outline (was 2)
+        fill(0);          // Black fill
+        beginShape();
+        vertex(25, -5);   // Sharp right protrusion
+        vertex(15, 20);   // Angular bottom-right
+        vertex(0, 30);    // Extended bottom point
+        vertex(-20, 25);  // Jagged bottom-left
+        vertex(-30, 10);  // Sharp left point
+        vertex(-25, -15); // Top-left protrusion
+        vertex(-10, -25); // Uneven top-left
+        vertex(10, -20);  // Top-right, irregular
+        vertex(20, -10);  // Back toward right
+        endShape(CLOSE);
+        pop();
     });
     
     fill(255);
+    noStroke();
     bullets.forEach(b => circle(b.x, b.y, 5));
     
     if (saucer) {
@@ -383,8 +402,8 @@ function drawGame() {
     fill(255, 0, 0);
     saucerBullets.forEach(b => circle(b.x, b.y, 5));
     
-    textSize(20);
     fill(255);
+    textSize(20);
     text(`Score: ${score}`, 10, 30);
     text(`Lives: ${lives}`, 10, 50);
 }
@@ -443,9 +462,9 @@ function createAsteroid(sizeType, x, y) {
     let dy = random(-3, 3);
     
     let size;
-    if (sizeType === 'large') size = 30;
-    else if (sizeType === 'medium') size = 20;
-    else if (sizeType === 'small') size = 10;
+    if (sizeType === 'large') size = 40;
+    else if (sizeType === 'medium') size = 25;
+    else if (sizeType === 'small') size = 15;
     
     return { x, y, dx, dy, size, sizeType };
 }
@@ -476,10 +495,10 @@ function mousePressed() {
         
         if (mouseX > buttonX && mouseX < buttonX + buttonWidth &&
             mouseY > buttonY && mouseY < buttonY + buttonHeight) {
-            lives = 3;          // Reset lives
-            score = 0;          // Reset score
-            shotsFired = 0;     // Reset shots fired
-            hits = 0;           // Reset hits
+            lives = 3;
+            score = 0;
+            shotsFired = 0;
+            hits = 0;
             initialAsteroids = 2;
             resetGame();
         }
